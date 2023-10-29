@@ -48,10 +48,12 @@ import android.widget.TextView;
 import com.kaku.weac.Listener.HttpCallbackListener;
 import com.kaku.weac.R;
 import com.kaku.weac.activities.AlarmClockNapNotificationActivity;
+import com.kaku.weac.activities.CityManageActivity;
 import com.kaku.weac.bean.AlarmClock;
 import com.kaku.weac.bean.WeatherDaysForecast;
 import com.kaku.weac.bean.WeatherInfo;
 import com.kaku.weac.bean.WeatherLifeIndex;
+import com.kaku.weac.bean.observe.JsonRootBean;
 import com.kaku.weac.broadcast.AlarmClockBroadcast;
 import com.kaku.weac.common.WeacConstants;
 import com.kaku.weac.common.WeacStatus;
@@ -61,14 +63,24 @@ import com.kaku.weac.util.LogUtil;
 import com.kaku.weac.util.MyUtil;
 import com.kaku.weac.util.WeatherUtil;
 import com.kaku.weac.view.MySlidingView;
+import com.kaku.weac.zxing.utils.JsonUtil;
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Response;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * 闹钟响起画面Fragment
@@ -83,6 +95,8 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
      * Log tag ：AlarmClockOntimeFragment
      */
     private static final String LOG_TAG = "AlarmClockOntimeFragment";
+
+    ExecutorService executor = Executors.newFixedThreadPool(1);
 
     /**
      * 当前时间
@@ -203,8 +217,24 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
         // 小睡已执行次数
         mNapTimesRan = getActivity().getIntent().getIntExtra(
                 WeacConstants.NAP_RAN_TIMES, 0);
+        boolean play = false;
         // 播放铃声
-        playRing();
+        try {
+            Future<Boolean> future1 = executor.submit(() -> {
+                if (mAlarmClock != null) {
+                    return qw();
+                }
+                return false;
+            });
+            play = future1.get().booleanValue();
+            playRing(play);
+        } catch (InterruptedException e) {
+            LogUtil.e(LOG_TAG, e.toString());
+        } catch (ExecutionException e) {
+            LogUtil.e(LOG_TAG, e.toString());
+        } catch (Exception e) {
+            LogUtil.e(LOG_TAG, e.toString());
+        }
 
         mNotificationManager = NotificationManagerCompat.from(getActivity());
         if (mAlarmClock != null) {
@@ -213,6 +243,11 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
         }
 
         mShowTimeHandler = new ShowTimeHandler(this);
+
+        if(!play){
+            // 执行关闭操作
+            finishActivity();
+        }
     }
 
     @Override
@@ -626,10 +661,58 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
         mNotificationManager.notify(mAlarmClock.getId(), notification);
     }
 
+    public String okGet(String url,String requestBody,String token,String cookie){
+        OkHttpClient client = new OkHttpClient();
+        Request request = new Request.Builder()
+                .url(url)
+                .method("GET", null)
+                .addHeader("Cookie", "locale=en-US; locale=zh-CN")
+                .addHeader("x-cf-token", token)
+                .addHeader("cookie", cookie)
+                .build();
+        Response response;
+        try {
+            response = client.newCall(request).execute();
+            String responseBody = response.body().string();
+            //esponseBody:{"data":{"pair":null}}
+            //log.info("responseBody:{} token:{}",responseBody,token);
+            return responseBody;
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return "{}";
+    }
+
     /**
      * 播放铃声
      */
-    private void playRing() {
+    private boolean qw() {
+        String address ="http://api.yytianqi.com/observe?city=CH280601&key=xxxxx";
+        String cityName="深圳";
+        String response = okGet(address,"","","");
+        if (response.contains("Sucess")) {
+            JsonRootBean questionObject = JsonUtil.toJsonObject(response, JsonRootBean.class);
+            WeatherInfo weatherInfo = new WeatherInfo();
+            weatherInfo.setTemperature(questionObject.getData().getQw());
+            weatherInfo.setCity(questionObject.getData().getCityName());
+            weatherInfo.setUpdateTime(questionObject.getData().getLastUpdate());
+            weatherInfo.setWindPower(questionObject.getData().getFl());
+            weatherInfo.setWindDirection(questionObject.getData().getFx());
+            weatherInfo.setHumidity(questionObject.getData().getSd());
+            LogUtil.i(LOG_TAG, "weatherInfo: " + JsonUtil.toJsonStr(weatherInfo));
+            if(new BigDecimal(weatherInfo.getTemperature()).compareTo(new BigDecimal(mAlarmClock.getTag())) <=0){
+                return true;
+            }
+        }
+       return false;
+    }
+
+
+    /**
+     * 播放铃声
+     */
+    private void playRing(Boolean play) {
         mAudioManager = (AudioManager) getActivity().getSystemService(
                 Context.AUDIO_SERVICE);
         mCurrentVolume = mAudioManager
@@ -645,35 +728,58 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
                 // 振动模式
                 if (mAlarmClock.isVibrate()) {
                     // 播放
-                    AudioPlayer.getInstance(getActivity()).playRaw(
-                            R.raw.ring_weac_alarm_clock_default, true, true);
+                    if(play){
+                        AudioPlayer.getInstance(getActivity()).playRaw(
+                                R.raw.ring_weac_alarm_clock_default, true, true);
+                    };
                 } else {
-                    AudioPlayer.getInstance(getActivity()).playRaw(
-                            R.raw.ring_weac_alarm_clock_default, true, false);
+                    if(play){
+                        AudioPlayer.getInstance(getActivity()).playRaw(
+                                R.raw.ring_weac_alarm_clock_default, true, false);
+                    };
+
                 }
 
                 // 无铃声
             } else if (mAlarmClock.getRingUrl().equals(WeacConstants.NO_RING_URL)) {
                 // 振动模式
                 if (mAlarmClock.isVibrate()) {
-                    AudioPlayer.getInstance(getActivity()).stop();
-                    AudioPlayer.getInstance(getActivity()).vibrate();
+                    if(play){
+                        AudioPlayer.getInstance(getActivity()).stop();
+                    };
+
+                    if(play){
+                        AudioPlayer.getInstance(getActivity()).vibrate();
+                    };
+
                 } else {
-                    AudioPlayer.getInstance(getActivity()).stop();
+                    if(play){
+                        AudioPlayer.getInstance(getActivity()).stop();
+                    };
+
                 }
             } else {
                 // 振动模式
                 if (mAlarmClock.isVibrate()) {
-                    AudioPlayer.getInstance(getActivity()).play(
-                            mAlarmClock.getRingUrl(), true, true);
+                    if(play){
+                        AudioPlayer.getInstance(getActivity()).play(
+                                mAlarmClock.getRingUrl(), true, true);
+                    };
+
                 } else {
-                    AudioPlayer.getInstance(getActivity()).play(
-                            mAlarmClock.getRingUrl(), true, false);
+                    if(play){
+                        AudioPlayer.getInstance(getActivity()).play(
+                                mAlarmClock.getRingUrl(), true, false);
+                    };
+
                 }
             }
         } else {
-            AudioPlayer.getInstance(getActivity()).playRaw(
-                    R.raw.ring_weac_alarm_clock_default, true, true);
+            if(play){
+                AudioPlayer.getInstance(getActivity()).playRaw(
+                        R.raw.ring_weac_alarm_clock_default, true, true);
+            };
+
         }
     }
 

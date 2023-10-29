@@ -11,6 +11,8 @@ android {
         targetSdkVersion 19
         versionCode 7
         versionName "1.1.3"
+        //版本名后面添加一句话，意思就是flavor dimension 它的维度就是该版本号，这样维度就是都是统一的了
+        flavorDimensions "versionCode"
 
         manifestPlaceholders = [UMENG_CHANNEL_VALUE: "Umeng"]
     }
@@ -56,7 +58,7 @@ android {
             if (outputFile != null && outputFile.name.endsWith('.apk')) {
                 def fileName = outputFile.name.replace(".apk", "-${defaultConfig.versionName}.apk")
                 //noinspection GroovyAssignabilityCheck
-                output.outputFile = new File(outputFile.parent, fileName)
+                //ul output.outputFile = new File(outputFile.parent, fileName)
             }
         }
     }
@@ -156,4 +158,5 @@ dependencies {
     compile 'com.umeng.analytics:analytics:latest.integration'
     compile files('libs/umeng-update-v2.6.0.1.jar')
     compile project(':litepal')
+    compile group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.9.9'
 }
