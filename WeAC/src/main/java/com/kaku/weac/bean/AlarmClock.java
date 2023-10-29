@@ -59,6 +59,8 @@ public class AlarmClock extends DataSupport implements Parcelable {
      */
     private String tag;
 
+    private String qw;
+
     /**
      * 铃声名
      */
@@ -270,6 +272,14 @@ public class AlarmClock extends DataSupport implements Parcelable {
 
     public void setTag(String tag) {
         this.tag = tag;
+    }
+
+    public String getQw() {
+        return qw;
+    }
+
+    public void setQw(String qw) {
+        this.qw = qw;
     }
 
     public String getRingName() {

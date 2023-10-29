@@ -339,7 +339,7 @@ public class AlarmClockNewFragment extends BaseFragment implements OnClickListen
      */
     private void initTag(View view) {
         // 初始化闹钟实例的标签
-        mAlarmClock.setTag(getString(R.string.alarm_clock));
+        mAlarmClock.setTag(getString(R.string.alarm_clock1));
 
         // 标签描述控件
         EditText tag = (EditText) view.findViewById(R.id.tag_edit_text);
@@ -350,7 +350,7 @@ public class AlarmClockNewFragment extends BaseFragment implements OnClickListen
                 if (!s.toString().equals("")) {
                     mAlarmClock.setTag(s.toString());
                 } else {
-                    mAlarmClock.setTag(getString(R.string.alarm_clock));
+                    mAlarmClock.setTag(getString(R.string.alarm_clock1));
                 }
             }
 

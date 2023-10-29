@@ -365,7 +365,7 @@ public class AlarmClockEditFragment extends BaseFragment implements
                 if (!s.toString().equals("")) {
                     mAlarmClock.setTag(s.toString());
                 } else {
-                    mAlarmClock.setTag(getString(R.string.alarm_clock));
+                    mAlarmClock.setTag(getString(R.string.alarm_clock1));
                 }
             }
 

@@ -218,7 +218,6 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
         mNapTimesRan = getActivity().getIntent().getIntExtra(
                 WeacConstants.NAP_RAN_TIMES, 0);
         boolean play = false;
-        // 播放铃声
         try {
             Future<Boolean> future1 = executor.submit(() -> {
                 if (mAlarmClock != null) {
@@ -227,7 +226,6 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
                 return false;
             });
             play = future1.get().booleanValue();
-            playRing(play);
         } catch (InterruptedException e) {
             LogUtil.e(LOG_TAG, e.toString());
         } catch (ExecutionException e) {
@@ -235,7 +233,8 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
         } catch (Exception e) {
             LogUtil.e(LOG_TAG, e.toString());
         }
-
+        // 播放铃声
+        playRing(play);
         mNotificationManager = NotificationManagerCompat.from(getActivity());
         if (mAlarmClock != null) {
             // 取消下拉列表通知消息
@@ -243,7 +242,7 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
         }
 
         mShowTimeHandler = new ShowTimeHandler(this);
-
+        notification();
         if(!play){
             // 执行关闭操作
             finishActivity();
@@ -581,6 +580,42 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
         finishActivity();
     }
 
+
+    /**
+     * 小睡
+     */
+    @TargetApi(19)
+    private void notification() {
+        // 通知
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getActivity());
+        // 设置PendingIntent
+        Notification notification = builder
+                // 当清除下拉列表触发
+                //.setDeleteIntent(napCancel)
+                // 设置下拉列表标题
+                .setContentTitle(
+                        String.format(getString(R.string.xx_naping1),
+                                "设置="+mAlarmClock.getTag()+",当前="+mAlarmClock.getQw()))
+                // 设置下拉列表显示内容
+                .setContentText(String.format(getString(R.string.nap_to1), "设置="+mAlarmClock.getTag()+",当前="+mAlarmClock.getQw()))
+                // 设置状态栏显示的信息
+                .setTicker(
+                        String.format(getString(R.string.nap_time1),
+                                "设置="+mAlarmClock.getTag()+",当前="+mAlarmClock.getQw()))
+                // 设置状态栏（小图标）
+                .setSmallIcon(R.drawable.ic_nap_notification)
+                // 设置下拉列表（大图标）
+                .setLargeIcon(
+                        BitmapFactory.decodeResource(getResources(),
+                                R.drawable.ic_launcher)).setAutoCancel(true)
+                // 默认呼吸灯
+                .setDefaults(NotificationCompat.DEFAULT_LIGHTS | NotificationCompat.FLAG_SHOW_LIGHTS)
+                .build();
+        // 下拉列表显示小睡信息
+        mNotificationManager.notify(mAlarmClock.getId(), notification);
+    }
+
+
     /**
      * 小睡
      */
@@ -688,7 +723,7 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
      * 播放铃声
      */
     private boolean qw() {
-        String address ="http://api.yytianqi.com/observe?city=CH280601&key=xxxxx";
+        String address ="http://api.yytianqi.com/observe?city=CH280601&key=";
         String cityName="深圳";
         String response = okGet(address,"","","");
         if (response.contains("Sucess")) {
@@ -701,6 +736,7 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
             weatherInfo.setWindDirection(questionObject.getData().getFx());
             weatherInfo.setHumidity(questionObject.getData().getSd());
             LogUtil.i(LOG_TAG, "weatherInfo: " + JsonUtil.toJsonStr(weatherInfo));
+            mAlarmClock.setQw(weatherInfo.getTemperature());
             if(new BigDecimal(weatherInfo.getTemperature()).compareTo(new BigDecimal(mAlarmClock.getTag())) <=0){
                 return true;
             }
