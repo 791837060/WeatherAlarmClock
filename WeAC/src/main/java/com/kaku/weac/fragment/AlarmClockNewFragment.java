@@ -16,10 +16,15 @@
  */
 package com.kaku.weac.fragment;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.Notification;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.support.v4.app.NotificationManagerCompat;
+import android.support.v7.app.NotificationCompat;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -42,11 +47,24 @@ import com.kaku.weac.R;
 import com.kaku.weac.activities.NapEditActivity;
 import com.kaku.weac.activities.RingSelectActivity;
 import com.kaku.weac.bean.AlarmClock;
+import com.kaku.weac.bean.WeatherInfo;
+import com.kaku.weac.bean.observe.JsonRootBean;
 import com.kaku.weac.common.WeacConstants;
+import com.kaku.weac.util.LogUtil;
 import com.kaku.weac.util.MyUtil;
+import com.kaku.weac.zxing.utils.JsonUtil;
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Response;
 
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import me.everything.android.ui.overscroll.OverScrollDecoratorHelper;
 
@@ -333,13 +351,126 @@ public class AlarmClockNewFragment extends BaseFragment implements OnClickListen
     }
 
     /**
+     * 通知消息管理
+     */
+    private NotificationManagerCompat mNotificationManager;
+
+    @TargetApi(19)
+    private void notification() {
+        // 通知
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getActivity());
+        // 设置PendingIntent
+        Notification notification = builder
+                // 当清除下拉列表触发
+                //.setDeleteIntent(napCancel)
+                // 设置下拉列表标题
+                .setContentTitle(
+                        String.format(getString(R.string.xx_naping1),
+                                "s="+mAlarmClock.getTag()+",c="+mAlarmClock.getQw()))
+                // 设置下拉列表显示内容
+                .setContentText(String.format(getString(R.string.nap_to1), "s="+mAlarmClock.getTag()+",c="+mAlarmClock.getQw()))
+                // 设置状态栏显示的信息
+                .setTicker(
+                        String.format(getString(R.string.nap_time1),
+                                "s="+mAlarmClock.getTag()+",c="+mAlarmClock.getQw()))
+                // 设置状态栏（小图标）
+                .setSmallIcon(R.drawable.ic_nap_notification)
+                // 设置下拉列表（大图标）
+                .setLargeIcon(
+                        BitmapFactory.decodeResource(getResources(),
+                                R.drawable.ic_launcher)).setAutoCancel(true)
+                // 默认呼吸灯
+                .setDefaults(NotificationCompat.DEFAULT_LIGHTS | NotificationCompat.FLAG_SHOW_LIGHTS)
+                .build();
+        // 下拉列表显示小睡信息
+        mNotificationManager.notify(mAlarmClock.getId(), notification);
+    }
+
+
+    public String okGet(String url,String requestBody,String token,String cookie){
+        OkHttpClient client = new OkHttpClient();
+        Request request = new Request.Builder()
+                .url(url)
+                .method("GET", null)
+                .addHeader("Cookie", "locale=en-US; locale=zh-CN")
+                .addHeader("x-cf-token", token)
+                .addHeader("cookie", cookie)
+                .build();
+        Response response;
+        try {
+            response = client.newCall(request).execute();
+            String responseBody = response.body().string();
+            //esponseBody:{"data":{"pair":null}}
+            //log.info("responseBody:{} token:{}",responseBody,token);
+            return responseBody;
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return "{}";
+    }
+
+    /**
+     * 播放铃声
+     */
+    private boolean qw() {
+        try{
+            String address ="http://api.yytianqi.com/observe?city=CH280601&key=evqin26nlw8qj54c";
+            String cityName="深圳";
+            String response = okGet(address,"","","");
+            if (response.contains("Sucess")) {
+                JsonRootBean questionObject = JsonUtil.toJsonObject(response, JsonRootBean.class);
+                WeatherInfo weatherInfo = new WeatherInfo();
+                weatherInfo.setTemperature(questionObject.getData().getQw());
+                weatherInfo.setCity(questionObject.getData().getCityName());
+                weatherInfo.setUpdateTime(questionObject.getData().getLastUpdate());
+                weatherInfo.setWindPower(questionObject.getData().getFl());
+                weatherInfo.setWindDirection(questionObject.getData().getFx());
+                weatherInfo.setHumidity(questionObject.getData().getSd());
+                mAlarmClock.setQw(weatherInfo.getTemperature());
+                if(new BigDecimal(weatherInfo.getTemperature()).compareTo(new BigDecimal(mAlarmClock.getTag())) <=0){
+                    return true;
+                }else{
+                    return false;
+                }
+            }else{
+                mAlarmClock.setQw(response);
+                return false;
+            }
+        }catch (Exception e) {
+            return false;
+        }
+    }
+
+    ExecutorService executor = Executors.newFixedThreadPool(1);
+
+    /**
      * 设置标签
      *
      * @param view view
      */
     private void initTag(View view) {
+        mNotificationManager = NotificationManagerCompat.from(getActivity());
+
         // 初始化闹钟实例的标签
         mAlarmClock.setTag(getString(R.string.alarm_clock1));
+        boolean play = false;
+        try {
+            Future<Boolean> future1 = executor.submit(() -> {
+                if (mAlarmClock != null) {
+                    return qw();
+                }
+                return false;
+            });
+            play = future1.get().booleanValue();
+        } catch (InterruptedException e) {
+
+        } catch (ExecutionException e) {
+
+        } catch (Exception e) {
+
+        }
+        notification();
 
         // 标签描述控件
         EditText tag = (EditText) view.findViewById(R.id.tag_edit_text);

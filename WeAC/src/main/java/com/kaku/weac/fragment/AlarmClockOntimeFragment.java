@@ -243,10 +243,10 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
 
         mShowTimeHandler = new ShowTimeHandler(this);
         notification();
-        if(!play){
+        /*if(!play){
             // 执行关闭操作
             finishActivity();
-        }
+        }*/
     }
 
     @Override
@@ -581,9 +581,6 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
     }
 
 
-    /**
-     * 小睡
-     */
     @TargetApi(19)
     private void notification() {
         // 通知
@@ -595,13 +592,13 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
                 // 设置下拉列表标题
                 .setContentTitle(
                         String.format(getString(R.string.xx_naping1),
-                                "设置="+mAlarmClock.getTag()+",当前="+mAlarmClock.getQw()))
+                                "s="+mAlarmClock.getTag()+",c="+mAlarmClock.getQw()))
                 // 设置下拉列表显示内容
-                .setContentText(String.format(getString(R.string.nap_to1), "设置="+mAlarmClock.getTag()+",当前="+mAlarmClock.getQw()))
+                .setContentText(String.format(getString(R.string.nap_to1), "s="+mAlarmClock.getTag()+",c="+mAlarmClock.getQw()))
                 // 设置状态栏显示的信息
                 .setTicker(
                         String.format(getString(R.string.nap_time1),
-                                "设置="+mAlarmClock.getTag()+",当前="+mAlarmClock.getQw()))
+                                "s="+mAlarmClock.getTag()+",c="+mAlarmClock.getQw()))
                 // 设置状态栏（小图标）
                 .setSmallIcon(R.drawable.ic_nap_notification)
                 // 设置下拉列表（大图标）
@@ -723,25 +720,34 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
      * 播放铃声
      */
     private boolean qw() {
-        String address ="http://api.yytianqi.com/observe?city=CH280601&key=";
-        String cityName="深圳";
-        String response = okGet(address,"","","");
-        if (response.contains("Sucess")) {
-            JsonRootBean questionObject = JsonUtil.toJsonObject(response, JsonRootBean.class);
-            WeatherInfo weatherInfo = new WeatherInfo();
-            weatherInfo.setTemperature(questionObject.getData().getQw());
-            weatherInfo.setCity(questionObject.getData().getCityName());
-            weatherInfo.setUpdateTime(questionObject.getData().getLastUpdate());
-            weatherInfo.setWindPower(questionObject.getData().getFl());
-            weatherInfo.setWindDirection(questionObject.getData().getFx());
-            weatherInfo.setHumidity(questionObject.getData().getSd());
-            LogUtil.i(LOG_TAG, "weatherInfo: " + JsonUtil.toJsonStr(weatherInfo));
-            mAlarmClock.setQw(weatherInfo.getTemperature());
-            if(new BigDecimal(weatherInfo.getTemperature()).compareTo(new BigDecimal(mAlarmClock.getTag())) <=0){
-                return true;
+        try{
+            String address ="http://api.yytianqi.com/observe?city=CH280601&key=evqin26nlw8qj54c";
+            String cityName="深圳";
+            String response = okGet(address,"","","");
+            if (response.contains("Sucess")) {
+                JsonRootBean questionObject = JsonUtil.toJsonObject(response, JsonRootBean.class);
+                WeatherInfo weatherInfo = new WeatherInfo();
+                weatherInfo.setTemperature(questionObject.getData().getQw());
+                weatherInfo.setCity(questionObject.getData().getCityName());
+                weatherInfo.setUpdateTime(questionObject.getData().getLastUpdate());
+                weatherInfo.setWindPower(questionObject.getData().getFl());
+                weatherInfo.setWindDirection(questionObject.getData().getFx());
+                weatherInfo.setHumidity(questionObject.getData().getSd());
+                LogUtil.i(LOG_TAG, "weatherInfo: " + JsonUtil.toJsonStr(weatherInfo));
+                mAlarmClock.setQw(weatherInfo.getTemperature());
+                if(new BigDecimal(weatherInfo.getTemperature()).compareTo(new BigDecimal(mAlarmClock.getTag())) <=0){
+                    return true;
+                }else{
+                    return false;
+                }
+            }else{
+                mAlarmClock.setQw(response);
+                return false;
             }
+        }catch (Exception e) {
+            LogUtil.e(LOG_TAG, "weatherInfo: " + e.toString());
+            return false;
         }
-       return false;
     }
 
 
