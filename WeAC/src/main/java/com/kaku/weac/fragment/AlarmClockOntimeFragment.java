@@ -721,7 +721,7 @@ public class AlarmClockOntimeFragment extends BaseFragment implements
      */
     private boolean qw() {
         try{
-            String address ="http://api.yytianqi.com/observe?city=CH280601&key=evqin26nlw8qj54c";
+            String address ="http://api.yytianqi.com/observe?city=CH280601&key=";
             String cityName="深圳";
             String response = okGet(address,"","","");
             if (response.contains("Sucess")) {
